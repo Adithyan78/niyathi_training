@@ -1,16 +1,5 @@
-import csv
-
-
-# dict1={"name":["arya","arjun","bala","binu"],
-#        "password":["1234","arya","bala 1233","binu/123"],
-#        'status':[1,0,1,0]
-# }
 result={}
 row_count=0
-
-
-
-
 with open("atm.csv", newline="") as file:
     reader = csv.reader(file)
 with open("atm.csv", "r") as file:
