@@ -198,32 +198,158 @@ class Bank:
         """Retrieve account by number"""
         return self.accounts.get(account_number)
 
-# Example usage
+# Interactive menu system
+def display_main_menu():
+    print("\n" + "="*60)
+    print(f"{'BANK MANAGEMENT SYSTEM':^60}")
+    print("="*60)
+    print("1. Create Account")
+    print("2. Deposit Money")
+    print("3. Withdraw Money")
+    print("4. Check Balance")
+    print("5. Transfer Money")
+    print("6. Calculate Interest")
+    print("7. View Account Statement")
+    print("8. Exit")
+    print("="*60)
+
+def get_account_type():
+    print("\nSelect Account Type:")
+    print("1. Savings Account")
+    print("2. Checking Account")
+    print("3. Business Account")
+    choice = input("Enter choice (1-3): ").strip()
+    
+    account_types = {
+        "1": AccountType.SAVINGS,
+        "2": AccountType.CHECKING,
+        "3": AccountType.BUSINESS
+    }
+    return account_types.get(choice)
+
+def create_account(bank):
+    account_holder = input("Enter account holder name: ").strip()
+    account_type = get_account_type()
+    
+    if account_type is None:
+        print("Invalid account type!")
+        return
+    
+    try:
+        initial_balance = float(input("Enter initial balance: $"))
+        if initial_balance < 0:
+            print("Balance cannot be negative!")
+            return
+        bank.create_account(account_holder, account_type, initial_balance)
+    except ValueError:
+        print("Invalid amount!")
+
+def deposit_money(bank):
+    try:
+        account_num = int(input("Enter account number: "))
+        account = bank.get_account(account_num)
+        
+        if not account:
+            print("Account not found!")
+            return
+        
+        amount = float(input("Enter deposit amount: $"))
+        account.deposit(amount)
+    except ValueError:
+        print("Invalid input!")
+
+def withdraw_money(bank):
+    try:
+        account_num = int(input("Enter account number: "))
+        account = bank.get_account(account_num)
+        
+        if not account:
+            print("Account not found!")
+            return
+        
+        amount = float(input("Enter withdrawal amount: $"))
+        account.withdraw(amount)
+    except ValueError:
+        print("Invalid input!")
+
+def check_balance(bank):
+    try:
+        account_num = int(input("Enter account number: "))
+        account = bank.get_account(account_num)
+        
+        if not account:
+            print("Account not found!")
+            return
+        
+        print(f"\nAccount: {account.account_holder}")
+        print(f"Balance: ${account.get_balance():.2f}")
+    except ValueError:
+        print("Invalid account number!")
+
+def transfer_money(bank):
+    try:
+        from_account = int(input("Enter source account number: "))
+        to_account = int(input("Enter destination account number: "))
+        amount = float(input("Enter transfer amount: $"))
+        bank.transfer(from_account, to_account, amount)
+    except ValueError:
+        print("Invalid input!")
+
+def calculate_interest(bank):
+    try:
+        account_num = int(input("Enter account number: "))
+        account = bank.get_account(account_num)
+        
+        if not account:
+            print("Account not found!")
+            return
+        
+        account.calculate_interest()
+    except ValueError:
+        print("Invalid account number!")
+
+def view_statement(bank):
+    try:
+        account_num = int(input("Enter account number: "))
+        account = bank.get_account(account_num)
+        
+        if not account:
+            print("Account not found!")
+            return
+        
+        account.print_statement()
+    except ValueError:
+        print("Invalid account number!")
+
+# Main program
 if __name__ == "__main__":
-    # Create a bank
-    bank = Bank("National Bank")
+    # Get bank name from user
+    bank_name = input("Enter bank name: ").strip()
+    if not bank_name:
+        bank_name = "National Bank"
     
-    # Create accounts
-    savings = bank.create_account("Alice", AccountType.SAVINGS, 1000)
-    checking = bank.create_account("Bob", AccountType.CHECKING, 500)
-    business = bank.create_account("XYZ Corp", AccountType.BUSINESS, 5000)
+    bank = Bank(bank_name)
     
-    # Perform transactions
-    savings.deposit(500)
-    savings.withdraw(100)
-    savings.calculate_interest()
-    
-    checking.deposit(200)
-    checking.withdraw(150)
-    
-    business.deposit(1000)
-    business.withdraw(500)
-    business.calculate_interest()
-    
-    # Transfers
-    bank.transfer(savings.account_number, checking.account_number, 200)
-    
-    # Print statements
-    savings.print_statement()
-    checking.print_statement()
-    business.print_statement()
+    while True:
+        display_main_menu()
+        choice = input("Enter your choice (1-8): ").strip()
+        
+        if choice == "1":
+            create_account(bank)
+        elif choice == "2":
+            deposit_money(bank)
+        elif choice == "3":
+            withdraw_money(bank)
+        elif choice == "4":
+            check_balance(bank)
+        elif choice == "5":
+            transfer_money(bank)
+        elif choice == "6":
+            calculate_interest(bank)
+        elif choice == "7":
+            view_statement(bank)
+        elif choice == "8":
+            print("\nThank you for using Bank Management System!")
+            break
+        else:
+            print("Invalid choice! Please try again.")
