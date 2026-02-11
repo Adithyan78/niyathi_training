@@ -34,9 +34,16 @@ class Transaction:
 class BankAccount(ABC):
     _account_counter = 1000
     
-    def __init__(self, account_holder: str, account_type: AccountType, initial_balance: float = 0):
-        self.account_number = BankAccount._account_counter
-        BankAccount._account_counter += 1
+    def __init__(self, account_holder: str, account_type: AccountType, initial_balance: float = 0, account_number: int = None):
+        if account_number is None:
+            self.account_number = BankAccount._account_counter
+            BankAccount._account_counter += 1
+        else:
+            self.account_number = account_number
+            # Update counter if custom number is higher
+            if account_number >= BankAccount._account_counter:
+                BankAccount._account_counter = account_number + 1
+        
         self.account_holder = account_holder
         self.account_type = account_type
         self.balance = initial_balance
@@ -95,8 +102,8 @@ class BankAccount(ABC):
 
 # Savings Account - inherits from BankAccount
 class SavingsAccount(BankAccount):
-    def __init__(self, account_holder: str, initial_balance: float = 0):
-        super().__init__(account_holder, AccountType.SAVINGS, initial_balance)
+    def __init__(self, account_holder: str, initial_balance: float = 0, account_number: int = None):
+        super().__init__(account_holder, AccountType.SAVINGS, initial_balance, account_number)
         self.interest_rate = 0.04  # 4% annual interest
     
     def calculate_interest(self):
@@ -110,8 +117,8 @@ class SavingsAccount(BankAccount):
 
 # Checking Account - inherits from BankAccount
 class CheckingAccount(BankAccount):
-    def __init__(self, account_holder: str, initial_balance: float = 0):
-        super().__init__(account_holder, AccountType.CHECKING, initial_balance)
+    def __init__(self, account_holder: str, initial_balance: float = 0, account_number: int = None):
+        super().__init__(account_holder, AccountType.CHECKING, initial_balance, account_number)
         self.overdraft_limit = 500  # $500 overdraft protection
     
     def calculate_interest(self):
@@ -136,8 +143,8 @@ class CheckingAccount(BankAccount):
 
 # Business Account - inherits from BankAccount
 class BusinessAccount(BankAccount):
-    def __init__(self, account_holder: str, initial_balance: float = 0):
-        super().__init__(account_holder, AccountType.BUSINESS, initial_balance)
+    def __init__(self, account_holder: str, initial_balance: float = 0, account_number: int = None):
+        super().__init__(account_holder, AccountType.BUSINESS, initial_balance, account_number)
         self.interest_rate = 0.02  # 2% annual interest
         self.transaction_fee = 0.50  # $0.50 per transaction
     
@@ -164,14 +171,19 @@ class Bank:
         self.bank_name = bank_name
         self.accounts: dict = {}
     
-    def create_account(self, account_holder: str, account_type: AccountType, initial_balance: float = 0) -> BankAccount:
+    def create_account(self, account_holder: str, account_type: AccountType, initial_balance: float = 0, account_number: int = None) -> BankAccount:
         """Create a new account"""
+        # Check if account number already exists
+        if account_number and account_number in self.accounts:
+            print(f"Account number {account_number} already exists!")
+            return None
+        
         if account_type == AccountType.SAVINGS:
-            account = SavingsAccount(account_holder, initial_balance)
+            account = SavingsAccount(account_holder, initial_balance, account_number)
         elif account_type == AccountType.CHECKING:
-            account = CheckingAccount(account_holder, initial_balance)
+            account = CheckingAccount(account_holder, initial_balance, account_number)
         else:
-            account = BusinessAccount(account_holder, initial_balance)
+            account = BusinessAccount(account_holder, initial_balance, account_number)
         
         self.accounts[account.account_number] = account
         print(f"Account created successfully! Account Number: {account.account_number}")
@@ -240,7 +252,21 @@ def create_account(bank):
         if initial_balance < 0:
             print("Balance cannot be negative!")
             return
-        bank.create_account(account_holder, account_type, initial_balance)
+        
+        account_num_input = input("Enter account number (press Enter for auto-generated): ").strip()
+        account_number = None
+        
+        if account_num_input:
+            try:
+                account_number = int(account_num_input)
+                if account_number < 0:
+                    print("Account number cannot be negative!")
+                    return
+            except ValueError:
+                print("Invalid account number format!")
+                return
+        
+        bank.create_account(account_holder, account_type, initial_balance, account_number)
     except ValueError:
         print("Invalid amount!")
 
