@@ -1,3 +1,5 @@
+import csv
+import os
 from datetime import datetime
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -17,11 +19,11 @@ class AccountType(Enum):
 
 # Transaction class - represents a single transaction
 class Transaction:
-    def __init__(self, transaction_id: int, amount: float, transaction_type: TransactionType):
+    def __init__(self, transaction_id: int, amount: float, transaction_type: TransactionType, timestamp: str = None):
         self.transaction_id = transaction_id
         self.amount = amount
         self.transaction_type = transaction_type
-        self.timestamp = datetime.now()
+        self.timestamp = timestamp if timestamp else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.status = "Completed"
     
     def __str__(self):
@@ -170,6 +172,8 @@ class Bank:
     def __init__(self, bank_name: str):
         self.bank_name = bank_name
         self.accounts: dict = {}
+        self.accounts_file = "accounts.csv"
+        self.transactions_file = "transactions.csv"
     
     def create_account(self, account_holder: str, account_type: AccountType, initial_balance: float = 0, account_number: int = None) -> BankAccount:
         """Create a new account"""
@@ -187,6 +191,7 @@ class Bank:
         
         self.accounts[account.account_number] = account
         print(f"Account created successfully! Account Number: {account.account_number}")
+        self.save_accounts()
         return account
     
     def transfer(self, from_account: int, to_account: int, amount: float) -> bool:
@@ -203,12 +208,120 @@ class Bank:
             transaction = Transaction(len(destination.transactions) + 1, amount, TransactionType.TRANSFER)
             destination.transactions.append(transaction)
             print(f"Transfer of ${amount:.2f} from {source.account_holder} to {destination.account_holder} successful!")
+            self.save_accounts()
+            self.save_all_transactions()
             return True
         return False
     
     def get_account(self, account_number: int) -> Optional[BankAccount]:
         """Retrieve account by number"""
         return self.accounts.get(account_number)
+    
+    def save_accounts(self):
+        """Save all accounts to CSV"""
+        try:
+            with open(self.accounts_file, 'w', newline='') as csvfile:
+                fieldnames = ['AccountNumber', 'AccountHolder', 'AccountType', 'Balance']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                
+                writer.writeheader()
+                for account in self.accounts.values():
+                    writer.writerow({
+                        'AccountNumber': account.account_number,
+                        'AccountHolder': account.account_holder,
+                        'AccountType': account.account_type.value,
+                        'Balance': account.balance
+                    })
+            print(f"Accounts saved to {self.accounts_file}")
+        except Exception as e:
+            print(f"Error saving accounts: {e}")
+    
+    def save_all_transactions(self):
+        """Save all transactions to CSV"""
+        try:
+            with open(self.transactions_file, 'w', newline='') as csvfile:
+                fieldnames = ['AccountNumber', 'TransactionID', 'Type', 'Amount', 'Timestamp', 'Status']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                
+                writer.writeheader()
+                for account in self.accounts.values():
+                    for transaction in account.transactions:
+                        writer.writerow({
+                            'AccountNumber': account.account_number,
+                            'TransactionID': transaction.transaction_id,
+                            'Type': transaction.transaction_type.value,
+                            'Amount': transaction.amount,
+                            'Timestamp': transaction.timestamp,
+                            'Status': transaction.status
+                        })
+            print(f"Transactions saved to {self.transactions_file}")
+        except Exception as e:
+            print(f"Error saving transactions: {e}")
+    
+    def load_accounts(self):
+        """Load accounts from CSV"""
+        if not os.path.exists(self.accounts_file):
+            print("No previous account data found.")
+            return
+        
+        try:
+            with open(self.accounts_file, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    account_number = int(row['AccountNumber'])
+                    account_holder = row['AccountHolder']
+                    account_type_str = row['AccountType']
+                    balance = float(row['Balance'])
+                    
+                    # Convert string to AccountType enum
+                    account_type = AccountType.SAVINGS if account_type_str == "Savings" else \
+                                  AccountType.CHECKING if account_type_str == "Checking" else \
+                                  AccountType.BUSINESS
+                    
+                    # Create appropriate account type
+                    if account_type == AccountType.SAVINGS:
+                        account = SavingsAccount(account_holder, balance, account_number)
+                    elif account_type == AccountType.CHECKING:
+                        account = CheckingAccount(account_holder, balance, account_number)
+                    else:
+                        account = BusinessAccount(account_holder, balance, account_number)
+                    
+                    self.accounts[account_number] = account
+                
+            print(f"Loaded {len(self.accounts)} accounts from {self.accounts_file}")
+        except Exception as e:
+            print(f"Error loading accounts: {e}")
+    
+    def load_transactions(self):
+        """Load transactions from CSV"""
+        if not os.path.exists(self.transactions_file):
+            print("No previous transaction data found.")
+            return
+        
+        try:
+            with open(self.transactions_file, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    account_number = int(row['AccountNumber'])
+                    transaction_id = int(row['TransactionID'])
+                    transaction_type_str = row['Type']
+                    amount = float(row['Amount'])
+                    timestamp = row['Timestamp']
+                    status = row['Status']
+                    
+                    if account_number in self.accounts:
+                        # Convert string to TransactionType enum
+                        transaction_type = TransactionType.DEPOSIT if transaction_type_str == "Deposit" else \
+                                          TransactionType.WITHDRAWAL if transaction_type_str == "Withdrawal" else \
+                                          TransactionType.TRANSFER
+                        
+                        transaction = Transaction(transaction_id, amount, transaction_type, timestamp)
+                        transaction.status = status
+                        self.accounts[account_number].transactions.append(transaction)
+            
+            print(f"Loaded transactions from {self.transactions_file}")
+        except Exception as e:
+            print(f"Error loading transactions: {e}")
 
 # Interactive menu system
 def display_main_menu():
@@ -222,7 +335,8 @@ def display_main_menu():
     print("5. Transfer Money")
     print("6. Calculate Interest")
     print("7. View Account Statement")
-    print("8. Exit")
+    print("8. Save Data")
+    print("9. Exit")
     print("="*60)
 
 def get_account_type():
@@ -280,7 +394,9 @@ def deposit_money(bank):
             return
         
         amount = float(input("Enter deposit amount: $"))
-        account.deposit(amount)
+        if account.deposit(amount):
+            bank.save_accounts()
+            bank.save_all_transactions()
     except ValueError:
         print("Invalid input!")
 
@@ -294,7 +410,9 @@ def withdraw_money(bank):
             return
         
         amount = float(input("Enter withdrawal amount: $"))
-        account.withdraw(amount)
+        if account.withdraw(amount):
+            bank.save_accounts()
+            bank.save_all_transactions()
     except ValueError:
         print("Invalid input!")
 
@@ -331,6 +449,8 @@ def calculate_interest(bank):
             return
         
         account.calculate_interest()
+        bank.save_accounts()
+        bank.save_all_transactions()
     except ValueError:
         print("Invalid account number!")
 
@@ -356,9 +476,13 @@ if __name__ == "__main__":
     
     bank = Bank(bank_name)
     
+    # Load existing data
+    bank.load_accounts()
+    bank.load_transactions()
+    
     while True:
         display_main_menu()
-        choice = input("Enter your choice (1-8): ").strip()
+        choice = input("Enter your choice (1-9): ").strip()
         
         if choice == "1":
             create_account(bank)
@@ -375,6 +499,11 @@ if __name__ == "__main__":
         elif choice == "7":
             view_statement(bank)
         elif choice == "8":
+            bank.save_accounts()
+            bank.save_all_transactions()
+        elif choice == "9":
+            bank.save_accounts()
+            bank.save_all_transactions()
             print("\nThank you for using Bank Management System!")
             break
         else:
